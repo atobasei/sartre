@@ -1,0 +1,5 @@
+{
+  "name": "@sartre/tsconfig",
+  "private": true,
+  "files": ["base.json"]
+}

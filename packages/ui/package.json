@@ -1,0 +1,24 @@
+{
+  "name": "@sartre/ui",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@sartre/core": "workspace:*",
+    "@sartre/tokens": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@sartre/tsconfig": "workspace:*",
+    "@types/react": "~19.2.0",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "typescript": "~6.0.3"
+  }
+}

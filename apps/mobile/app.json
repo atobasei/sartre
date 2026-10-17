@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Sartre",
+    "slug": "sartre",
+    "scheme": "sartre",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "web": { "bundler": "metro", "output": "single" },
+    "experiments": { "typedRoutes": false }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "sartre",
+  "private": true,
+  "packageManager": "pnpm@12.14.0",
+  "scripts": {
+    "dev": "turbo run dev --filter=web",
+    "dev:mobile": "pnpm --filter mobile start",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "2.11.9",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,23 @@
+packages:
+  - apps/*
+  - packages/*
+  - tooling/*
+
+# React Native / Expo tooling (Metro) still expects a flat node_modules.
+nodeLinker: hoisted
+
+# Added by pnpm: these exact versions were newer than its minimum-release-age policy at install time.
+minimumReleaseAgeExclude:
+  - '@turbo/darwin-64@2.11.9'
+  - '@turbo/darwin-arm64@2.11.9'
+  - '@turbo/linux-64@2.11.9'
+  - '@turbo/linux-arm64@2.11.9'
+  - '@turbo/windows-64@2.11.9'
+  - '@turbo/windows-arm64@2.11.9'
+  - turbo@2.11.9
+  - '@expo/cli@58.1.11'
+  - '@expo/schema-utils@58.0.2'
+  - babel-preset-expo@58.0.17
+  - expo-modules-core@58.0.22
+  - expo-modules-jsi@58.0.15
+  - expo@58.0.14

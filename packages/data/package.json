@@ -1,0 +1,21 @@
+{
+  "name": "@sartre/data",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sartre/core": "workspace:*",
+    "@sartre/mock": "workspace:*"
+  },
+  "devDependencies": {
+    "@sartre/tsconfig": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "5.0.3"
+  }
+}
