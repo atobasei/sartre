@@ -2,6 +2,7 @@ export { Prototype } from './Prototype';
 export * from './nav';
 export * from './settings';
 export { useLibrary } from './store';
+export { useSession } from './session';
 export { ProfileScreen } from './screens/ProfileScreen';
 export { RankScreen } from './screens/RankScreen';
 export { LogScreen } from './screens/LogScreen';

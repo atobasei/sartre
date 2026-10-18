@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { DevToolbar } from './DevToolbar';
 import { routes, useNav } from './nav';
+import { useSession } from './session';
 import { useSettings } from './settings';
 import { useLibrary } from './store';
 
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const nav = useNav();
   const { settings } = useSettings();
   const { library } = useLibrary();
+  const session = useSession();
 
   return (
     <View style={{ flex: 1, minHeight: '100%', backgroundColor: colors.bg }}>
@@ -24,7 +26,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {APP_NAME.toLowerCase()}
               </Text>
             </Pressable>
-            {settings.viewer === 'owner' ? <Button label="Log a book" onPress={() => nav.push(routes.log())} /> : null}
+            {settings.viewer === 'owner' ? (
+              <View style={{ flexDirection: 'row', gap: space[2] }}>
+                {session ? <Button label="Sign out" kind="ghost" onPress={() => session.backend.signOut()} /> : null}
+                <Button label="Log a book" onPress={() => nav.push(routes.log())} />
+              </View>
+            ) : null}
           </View>
           {children}
         </View>

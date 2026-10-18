@@ -94,7 +94,7 @@ export interface Completion {
   rankTotalAtTime: number;
 }
 
-export type Banner = { type: 'topFour' } | { type: 'collage'; bookIds: Id[] };
+export type Banner = { type: 'topFour' } | { type: 'collage'; bookIds: Id[] } | { type: 'image'; uri: string };
 
 export interface Profile {
   uid: Id;
@@ -107,3 +107,6 @@ export interface Profile {
   privacy: PrivacyLevel;
   joinedAt: IsoDate;
 }
+
+/** The profile fields an owner edits in place. `undefined` clears a field. */
+export type ProfilePatch = Partial<Pick<Profile, 'bio' | 'avatarUrl' | 'banner'>>;

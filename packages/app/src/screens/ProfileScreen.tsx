@@ -1,7 +1,7 @@
-import { visibilityFor, type Completion, type Visibility } from '@sartre/core';
+import { visibilityFor, type Completion, type ProfilePatch, type Visibility } from '@sartre/core';
 import { space } from '@sartre/tokens';
 import { Avatar, BucketTag, Button, Card, Cover, ProgressBar, SectionLabel, Segmented, Tabs, Text, useTheme, useViewport } from '@sartre/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 import { Banner } from '../components/Banner';
 import { MonthlyTimeline } from '../components/MonthlyTimeline';
@@ -9,22 +9,35 @@ import { RankBadge } from '../components/RankBadge';
 import { authorLine, formatDate, formatNumber, monthName, plural } from '../format';
 import { routes, useNav } from '../nav';
 import { useOverview, useRank, type Overview } from '../selectors';
+import { useSession } from '../session';
 import { useSettings } from '../settings';
+import { pickImage } from '../pickImage';
 import { useLibrary } from '../store';
 
 type TabKey = 'overview' | 'completions' | 'reports';
 
-export function ProfileScreen() {
-  const { library } = useLibrary();
+/** `handle` is the one in the URL. Signed in, it must be yours until public profiles are readable. */
+export function ProfileScreen({ handle }: { handle?: string }) {
+  const { library, updateProfile } = useLibrary();
   const { settings } = useSettings();
+  const session = useSession();
+  const nav = useNav();
   const overview = useOverview();
+  const ownHandle = library.profile.handle;
+  useEffect(() => {
+    if (session && handle && handle !== ownHandle) nav.replace(routes.profile(ownHandle));
+  }, [session, handle, ownHandle, nav]);
   const { width } = useViewport();
   const compact = width < 720;
   const [tab, setTab] = useState<TabKey>('overview');
-  const { profile } = library;
+  // Edits preview live in the header and only reach the store on Save.
+  const [draft, setDraft] = useState<ProfilePatch | null>(null);
+  const profile = { ...library.profile, ...draft };
   const owner = settings.viewer === 'owner';
   const vis = visibilityFor(settings.privacy, owner ? 'owner' : 'public');
   const bannerBooks = (overview.ranked.length ? overview.ranked : overview.thisYear.map((c) => c.bookId)).map(overview.book);
+  // An uploaded banner is part of the profile shell, so it shows even on a private profile.
+  const bannerImage = profile.banner.type === 'image' ? profile.banner.uri : undefined;
 
   const tabs = [
     { key: 'overview' as const, label: 'Overview' },
@@ -35,15 +48,36 @@ export function ProfileScreen() {
   return (
     <View style={{ gap: space[5] }}>
       <View>
-        <Banner books={vis.completions ? bannerBooks : []} style={settings.banner} height={compact ? 150 : 210} compact={compact} />
+        <Banner
+          books={vis.completions ? bannerBooks : []}
+          style={settings.banner}
+          height={compact ? 150 : 210}
+          compact={compact}
+          imageUri={bannerImage}
+        />
         <View style={{ paddingHorizontal: compact ? space[2] : space[5], marginTop: -36 }}>
-          <Avatar name={profile.displayName} uri={profile.avatarUrl} size={compact ? 72 : 88} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Avatar name={profile.displayName} uri={profile.avatarUrl} size={compact ? 72 : 88} />
+            {owner && !draft ? <Button label="Edit profile" kind="ghost" onPress={() => setDraft({})} /> : null}
+          </View>
           <View style={{ marginTop: space[3], gap: 2 }}>
             <Text variant="title">{profile.displayName}</Text>
             <Text variant="mono" tone="muted">
               @{profile.handle}
             </Text>
-            {profile.bio ? (
+            {owner && draft ? (
+              <ProfileEditor
+                bio={profile.bio ?? ''}
+                hasBannerImage={Boolean(bannerImage)}
+                onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+                onCancel={() => setDraft(null)}
+                onSave={() => {
+                  const bio = draft.bio?.trim();
+                  updateProfile({ ...draft, ...(draft.bio !== undefined && { bio: bio || undefined }) });
+                  setDraft(null);
+                }}
+              />
+            ) : profile.bio ? (
               <Text variant="body" tone="muted" style={{ marginTop: space[2], maxWidth: 520 }}>
                 {profile.bio}
               </Text>
@@ -56,6 +90,14 @@ export function ProfileScreen() {
         <Card>
           <Text variant="heading">This profile is private.</Text>
         </Card>
+      ) : library.library.length === 0 ? (
+        // A new account: no tabs of empty sections, just the one thing to do.
+        owner ? (
+          <Card style={{ gap: space[3], alignItems: 'flex-start' }}>
+            <Text variant="heading">No books yet.</Text>
+            <Button label="Log a book" kind="secondary" onPress={() => nav.push(routes.log())} />
+          </Card>
+        ) : null
       ) : (
         <>
           <Tabs tabs={tabs} value={tab} onChange={setTab} />
@@ -64,6 +106,72 @@ export function ProfileScreen() {
           {tab === 'reports' && <ReportsTab />}
         </>
       )}
+    </View>
+  );
+}
+
+// ─── Edit profile ───────────────────────────────────────────────────────────
+
+const BIO_MAX = 160;
+
+function ProfileEditor({
+  bio,
+  hasBannerImage,
+  onChange,
+  onCancel,
+  onSave,
+}: {
+  bio: string;
+  hasBannerImage: boolean;
+  onChange: (patch: ProfilePatch) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const { colors } = useTheme();
+  const pick = async (kind: 'avatar' | 'banner') => {
+    const uri = await pickImage(kind);
+    if (!uri) return;
+    onChange(kind === 'avatar' ? { avatarUrl: uri } : { banner: { type: 'image', uri } });
+  };
+
+  return (
+    <View style={{ marginTop: space[3], gap: space[3], maxWidth: 520 }}>
+      <View style={{ gap: 6 }}>
+        <TextInput
+          value={bio}
+          onChangeText={(text) => onChange({ bio: text })}
+          multiline
+          maxLength={BIO_MAX}
+          placeholder="Bio"
+          placeholderTextColor={colors.textFaint}
+          accessibilityLabel="Bio"
+          style={{
+            minHeight: 72,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: 8,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            color: colors.text,
+            backgroundColor: colors.bg,
+            textAlignVertical: 'top',
+          }}
+        />
+        <Text variant="mono" tone="faint" style={{ alignSelf: 'flex-end' }}>
+          {bio.length}/{BIO_MAX}
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
+        <Button label="Change photo" kind="secondary" onPress={() => pick('avatar')} />
+        <Button label="Change banner" kind="secondary" onPress={() => pick('banner')} />
+        {hasBannerImage ? (
+          <Button label="Use covers" kind="ghost" onPress={() => onChange({ banner: { type: 'topFour' } })} />
+        ) : null}
+      </View>
+      <View style={{ flexDirection: 'row', gap: space[2] }}>
+        <Button label="Save" onPress={onSave} />
+        <Button label="Cancel" kind="ghost" onPress={onCancel} />
+      </View>
     </View>
   );
 }

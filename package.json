@@ -7,10 +7,13 @@
     "dev:mobile": "pnpm --filter mobile start",
     "build": "turbo run build",
     "test": "turbo run test",
+    "emulators": "firebase emulators:start --import=.firebase/emulator-data --export-on-exit",
+    "test:rules": "firebase emulators:exec --only firestore,storage \"pnpm --filter @sartre/firebase test:rules\"",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint"
   },
   "devDependencies": {
+    "firebase-tools": "15.34.0",
     "turbo": "2.11.9",
     "typescript": "~6.0.3"
   }

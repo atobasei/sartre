@@ -6,7 +6,10 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      ["expo-image-picker", { "photosPermission": "Choose a photo for your profile picture or banner.", "cameraPermission": false, "microphonePermission": false }]
+    ],
     "web": { "bundler": "metro", "output": "single" },
     "experiments": { "typedRoutes": false }
   }

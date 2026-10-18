@@ -10,6 +10,7 @@
   "dependencies": {
     "@sartre/app": "workspace:*",
     "@sartre/data": "workspace:*",
+    "@sartre/firebase": "workspace:*",
     "@sartre/mock": "workspace:*",
     "@sartre/tokens": "workspace:*",
     "@sartre/ui": "workspace:*",

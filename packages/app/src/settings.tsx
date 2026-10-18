@@ -10,6 +10,8 @@ export type Viewer = 'owner' | 'public';
 export type MonthView = 'covers' | 'bars' | 'both';
 export type RankDisplay = 'position' | 'score' | 'both';
 export type SearchSource = 'live' | 'mock';
+/** Where the library comes from: mock datasets, or a signed-in Firebase account. */
+export type DataSource = 'mock' | 'firebase';
 export type BannerStyle = 'topFour' | 'collage';
 
 export interface PrototypeSettings {
@@ -21,6 +23,7 @@ export interface PrototypeSettings {
   rankDisplay: RankDisplay;
   banner: BannerStyle;
   search: SearchSource;
+  data: DataSource;
 }
 
 export const DEFAULT_SETTINGS: PrototypeSettings = {
@@ -32,6 +35,7 @@ export const DEFAULT_SETTINGS: PrototypeSettings = {
   rankDisplay: 'position',
   banner: 'topFour',
   search: 'live',
+  data: 'mock',
 };
 
 const pick = <T extends string>(value: string | null | undefined, allowed: readonly T[], fallback: T): T =>
@@ -47,6 +51,7 @@ const KEYS = {
   rankDisplay: 'rank',
   banner: 'banner',
   search: 'src',
+  data: 'data',
 } as const;
 const VOLUME_PARAM: Record<VolumeState, string> = { one: '1', four: '4', thirty: '30' };
 
@@ -63,6 +68,7 @@ export function settingsFromParams(get: (key: string) => string | null | undefin
     rankDisplay: pick(get(KEYS.rankDisplay), ['position', 'score', 'both'], DEFAULT_SETTINGS.rankDisplay),
     banner: pick(get(KEYS.banner), ['topFour', 'collage'], DEFAULT_SETTINGS.banner),
     search: pick(get(KEYS.search), ['live', 'mock'], DEFAULT_SETTINGS.search),
+    data: pick(get(KEYS.data), ['mock', 'firebase'], DEFAULT_SETTINGS.data),
   };
 }
 
@@ -70,7 +76,7 @@ export function settingsFromParams(get: (key: string) => string | null | undefin
 export function settingsToParams(s: PrototypeSettings): URLSearchParams {
   const p = new URLSearchParams();
   if (s.volume !== DEFAULT_SETTINGS.volume) p.set(KEYS.volume, VOLUME_PARAM[s.volume]);
-  for (const key of ['theme', 'viewer', 'privacy', 'monthView', 'rankDisplay', 'banner', 'search'] as const) {
+  for (const key of ['theme', 'viewer', 'privacy', 'monthView', 'rankDisplay', 'banner', 'search', 'data'] as const) {
     if (s[key] !== DEFAULT_SETTINGS[key]) p.set(KEYS[key], s[key]);
   }
   return p;

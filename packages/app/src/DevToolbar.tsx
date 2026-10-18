@@ -40,9 +40,21 @@ export function DevToolbar() {
           }}
         >
           <ScrollView contentContainerStyle={{ padding: space[4], gap: space[4] }}>
-            <Row label="Volume">
-              <Segmented options={VOLUME_STATES.map((v) => ({ key: v, label: VOLUME_LABELS[v] }))} value={settings.volume} onChange={set('volume')} />
+            <Row label="Data">
+              <Segmented
+                options={[
+                  { key: 'mock', label: 'Mock' },
+                  { key: 'firebase', label: 'Firebase' },
+                ]}
+                value={settings.data}
+                onChange={set('data')}
+              />
             </Row>
+            {settings.data === 'mock' ? (
+              <Row label="Volume">
+                <Segmented options={VOLUME_STATES.map((v) => ({ key: v, label: VOLUME_LABELS[v] }))} value={settings.volume} onChange={set('volume')} />
+              </Row>
+            ) : null}
             <Row label="Theme">
               <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
                 {themeNames.map((name) => {
@@ -161,7 +173,7 @@ export function DevToolbar() {
       >
         <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent }} />
         <Text variant="small" style={{ color: colors.bg, fontWeight: '600', fontSize: 13 }}>
-          {open ? 'Close' : `Prototype · ${VOLUME_LABELS[settings.volume]}`}
+          {open ? 'Close' : `Prototype · ${settings.data === 'firebase' ? 'Firebase' : VOLUME_LABELS[settings.volume]}`}
         </Text>
       </Pressable>
     </View>

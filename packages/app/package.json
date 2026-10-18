@@ -9,9 +9,11 @@
   "dependencies": {
     "@sartre/core": "workspace:*",
     "@sartre/data": "workspace:*",
+    "@sartre/firebase": "workspace:*",
     "@sartre/mock": "workspace:*",
     "@sartre/tokens": "workspace:*",
     "@sartre/ui": "workspace:*",
+    "expo-image-picker": "~58.0.10",
     "html-to-image": "1.11.13"
   },
   "peerDependencies": {

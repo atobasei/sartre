@@ -3,23 +3,35 @@ import { Cover, useTheme } from '@sartre/ui';
 import { Image, StyleSheet, View } from 'react-native';
 
 /**
- * The profile banner is a taste signal, built from covers rather than an upload:
+ * The profile banner is a taste signal, built from covers by default:
  *   - one book: its cover, blurred into a color field (no lonely single slot)
  *   - top four: the best-ranked covers standing on a shelf
  *   - collage: a full-bleed mosaic of covers the user picks
+ * An uploaded image (`imageUri`) overrides all of these.
  */
 export function Banner({
   books,
   style,
   height,
   compact,
+  imageUri,
 }: {
   books: Book[];
   style: 'topFour' | 'collage';
   height: number;
   compact: boolean;
+  imageUri?: string;
 }) {
   const { colors, scheme } = useTheme();
+
+  if (imageUri) {
+    return (
+      <View style={[styles.frame, { height, backgroundColor: colors.surfaceAlt }]}>
+        <Image source={{ uri: imageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      </View>
+    );
+  }
+
   const withCovers = books.filter((b) => b.coverId);
   const wash = scheme === 'light' ? 'rgba(243,238,228,0.35)' : 'rgba(0,0,0,0.35)';
 

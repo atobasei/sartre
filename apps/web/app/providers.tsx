@@ -2,11 +2,30 @@
 
 import { Prototype, settingsFromParams, settingsToParams, type Nav, type PrototypeSettings } from '@sartre/app';
 import { HttpBookProvider } from '@sartre/data';
+import { createBackend, DEMO_OPTIONS, type Backend } from '@sartre/firebase';
 import { themes } from '@sartre/tokens';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 const liveProvider = new HttpBookProvider('/api/books');
+
+// Without a real project configured, use the demo project on the local emulators
+// (`pnpm emulators`). Env vars must be referenced literally for Next to inline them.
+let backend: Backend | undefined;
+const getBackend = () =>
+  (backend ??= createBackend(
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      ? {
+          options: {
+            apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+            authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+            appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+          },
+        }
+      : { options: DEMO_OPTIONS, emulatorHost: '127.0.0.1' },
+  ));
 
 /** Web adapter: Next router for navigation, prototype settings in the URL query. */
 export function WebPrototype({ children }: { children: ReactNode }) {
@@ -54,7 +73,7 @@ export function WebPrototype({ children }: { children: ReactNode }) {
   }, [settings.theme]);
 
   return (
-    <Prototype nav={nav} settings={settings} onSettingsChange={onSettingsChange} liveProvider={liveProvider}>
+    <Prototype nav={nav} settings={settings} onSettingsChange={onSettingsChange} liveProvider={liveProvider} getBackend={getBackend}>
       {children}
     </Prototype>
   );

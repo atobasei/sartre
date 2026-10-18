@@ -10,13 +10,19 @@ const handleFrom = (segment: string) => {
   return s.startsWith('@') ? s.slice(1) : null;
 };
 
-export async function generateMetadata({ params }: PageProps<'/[handle]'>): Promise<Metadata> {
+// With data=firebase the server can't see who's signed in (auth is client-side
+// for now), so the screen checks the handle instead.
+const usesFirebase = async (searchParams: PageProps<'/[handle]'>['searchParams']) => (await searchParams).data === 'firebase';
+
+export async function generateMetadata({ params, searchParams }: PageProps<'/[handle]'>): Promise<Metadata> {
   const handle = handleFrom((await params).handle);
-  return { title: handle ? `${MOCK_PROFILE.displayName} (@${handle})` : undefined };
+  if (!handle) return {};
+  return { title: (await usesFirebase(searchParams)) ? `@${handle}` : `${MOCK_PROFILE.displayName} (@${handle})` };
 }
 
-export default async function ProfilePage({ params }: PageProps<'/[handle]'>) {
+export default async function ProfilePage({ params, searchParams }: PageProps<'/[handle]'>) {
   const handle = handleFrom((await params).handle);
-  if (handle !== MOCK_PROFILE.handle) notFound();
-  return <ProfileScreen />;
+  if (!handle) notFound();
+  if (!(await usesFirebase(searchParams)) && handle !== MOCK_PROFILE.handle) notFound();
+  return <ProfileScreen handle={handle} />;
 }

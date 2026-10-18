@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Private data lives under users/{uid}, readable only by its owner. Public
+// profiles are a projection (profiles/{uid}) written by a Cloud Function according
+// to the privacy dial, so these rules never have to hide individual fields.
+// Handle shape is kept in step with packages/core/src/handle.ts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validProfile(data) {
+      return data.keys().hasOnly(['handle', 'displayName', 'bio', 'avatarUrl', 'banner', 'theme', 'privacy', 'joinedAt'])
+        && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 60
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 160))
+        && data.privacy in ['private', 'completions', 'reports', 'open'];
+    }
+
+    match /users/{uid} {
+      allow read: if isUser(uid);
+      // Created once, in the same transaction that claims handles/{handle}.
+      allow create: if isUser(uid) && validProfile(request.resource.data)
+        && getAfter(/databases/$(database)/documents/handles/$(request.resource.data.handle)).data.uid == uid;
+      // Handle changes need a release/claim flow; until then the handle is fixed.
+      allow update: if isUser(uid) && validProfile(request.resource.data)
+        && request.resource.data.handle == resource.data.handle;
+      allow delete: if false;
+
+      // `{collection}` first: a bare `{document=**}` also matches zero segments,
+      // i.e. users/{uid} itself, which would bypass the profile checks above.
+      match /{collection}/{document=**} {
+        allow read, write: if isUser(uid);
+      }
+    }
+
+    match /handles/{handle} {
+      // Single gets let sign-up check availability; listing would enumerate users.
+      allow get: if true;
+      allow list: if false;
+      // A user can only claim the handle their own new profile names, which makes it one handle per user.
+      allow create: if signedIn()
+        && handle.matches('^[a-z0-9_]{3,20}$')
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle;
+      allow update, delete: if false;
+    }
+
+    match /profiles/{uid}/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

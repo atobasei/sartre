@@ -1,4 +1,5 @@
 import {
+  emptyRankings,
   rankOf,
   ulid,
   type Book,
@@ -7,6 +8,8 @@ import {
   type Edition,
   type Id,
   type LibraryEntry,
+  type Profile,
+  type ProfilePatch,
   type Rankings,
 } from '@sartre/core';
 import type { BookProvider, EditionResult, WorkResult } from '@sartre/data';
@@ -16,8 +19,9 @@ import { createContext, useContext, useMemo, useReducer, type ReactNode } from '
 // In-memory stand-in for the Firebase repositories. Shapes match the Firestore
 // model (books / editions / library / rankings / completions), so screens won't
 // change when the backend arrives. State resets when the volume state changes.
+// With `data=firebase` the profile is real and persisted; books are next.
 
-export interface Library extends MockDataset {
+export interface Library extends Omit<MockDataset, 'state'> {
   /** externalKeys: "ol:work:OL123W" → our book ID. Mirrors the dedupe collection. */
   externalKeys: Map<string, Id>;
 }
@@ -26,7 +30,8 @@ type Action =
   | { type: 'add'; book: Book; edition: Edition; entry: LibraryEntry }
   | { type: 'rank'; bookId: Id; bucket: Bucket; rankings: Rankings; now: string }
   | { type: 'finish'; bookId: Id; now: string }
-  | { type: 'checkin'; bookId: Id; page: number; now: string };
+  | { type: 'checkin'; bookId: Id; page: number; now: string }
+  | { type: 'profile'; patch: ProfilePatch };
 
 function reducer(state: Library, action: Action): Library {
   switch (action.type) {
@@ -79,6 +84,8 @@ function reducer(state: Library, action: Action): Library {
       );
       return { ...state, checkins, library };
     }
+    case 'profile':
+      return { ...state, profile: { ...state.profile, ...action.patch } };
   }
 }
 
@@ -89,6 +96,20 @@ function initial(volume: VolumeState): Library {
   return { ...ds, externalKeys };
 }
 
+/** A signed-in account's starting point until library persistence lands: their profile, no books. */
+export function emptyLibrary(profile: Profile): Library {
+  return {
+    profile,
+    books: new Map(),
+    editions: new Map(),
+    library: [],
+    rankings: emptyRankings(),
+    checkins: [],
+    completions: [],
+    externalKeys: new Map(),
+  };
+}
+
 export interface LibraryApi {
   library: Library;
   provider: BookProvider;
@@ -97,21 +118,29 @@ export interface LibraryApi {
   finishBook(bookId: Id): void;
   commitRanking(bookId: Id, bucket: Bucket, rankings: Rankings): void;
   checkIn(bookId: Id, page: number): void;
+  /** Owner edits to the profile shell. Shown at once; images are local URIs until persisted. */
+  updateProfile(patch: ProfilePatch): void;
 }
 
 const LibraryContext = createContext<LibraryApi | null>(null);
 
 export function LibraryProvider({
-  volume,
+  volume = 'one',
+  seed,
   provider,
+  persistProfile,
   children,
 }: {
-  volume: VolumeState;
+  volume?: VolumeState;
+  /** Start from this library instead of a mock volume state. */
+  seed?: Library;
   provider: BookProvider;
+  /** Saves a profile patch and resolves with what was stored (hosted image URLs). */
+  persistProfile?: (patch: ProfilePatch) => Promise<ProfilePatch>;
   children: ReactNode;
 }) {
-  // Keyed by volume in the caller, so switching states starts fresh.
-  const [library, dispatch] = useReducer(reducer, volume, initial);
+  // Keyed by volume (or account) in the caller, so switching starts fresh.
+  const [library, dispatch] = useReducer(reducer, volume, (v) => seed ?? initial(v));
 
   const api = useMemo<LibraryApi>(
     () => ({
@@ -157,8 +186,15 @@ export function LibraryProvider({
       commitRanking: (bookId, bucket, rankings) =>
         dispatch({ type: 'rank', bookId, bucket, rankings, now: new Date().toISOString() }),
       checkIn: (bookId, page) => dispatch({ type: 'checkin', bookId, page, now: new Date().toISOString() }),
+      updateProfile(patch) {
+        dispatch({ type: 'profile', patch });
+        persistProfile?.(patch).then(
+          (saved) => dispatch({ type: 'profile', patch: saved }),
+          (e: unknown) => console.error('Saving the profile failed', e),
+        );
+      },
     }),
-    [library, provider],
+    [library, provider, persistProfile],
   );
 
   return <LibraryContext.Provider value={api}>{children}</LibraryContext.Provider>;
