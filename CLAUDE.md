@@ -45,6 +45,7 @@ packages/app    Shared screens + state: Profile, Rank, Log, Card, Design; Protot
 packages/data   BookProvider interface; OpenLibraryProvider, HttpBookProvider (talks to /api/books), MockBookProvider.
 packages/mock   Fixture catalog (real Open Library work IDs/cover IDs) + 1/4/30-book dataset builder.
 tooling/tsconfig Shared base tsconfig.
+docs/WORKFLOW.md Mermaid diagrams: architecture, sign-in states, log → rank → card, privacy, Firebase path. Update when flows change.
 ```
 
 Packages export TypeScript source directly (`main: ./src/index.ts`); no build step. Turbopack and Metro transpile them.
@@ -76,6 +77,16 @@ Packages export TypeScript source directly (`main: ./src/index.ts`); no build st
 - The in-memory store (`packages/app/src/store.tsx`) mirrors these shapes so screens won't change when Firebase lands.
 - Hosting: web on Vercel; Firebase for Auth/Firestore/Storage. Share-card images for link previews will move to `next/og` (Satori), which is why cards are flexbox-only.
 
+## Auth + Firebase (`data=firebase` prototype mode)
+
+- `packages/firebase` wraps the modular JS SDK behind a `Backend` interface; shared screens never import Firebase. Platform split only for auth (`auth.web.ts` Google popup with `prompt=select_account` = Google's chooser of the browser's accounts; `auth.ts` native, Google pending a dev build).
+- Sign-in: **email + password or Google**. Password accounts must **verify their email** before onboarding; `firestore.rules`/`storage.rules` enforce `email_verified` on every write (blocks account pre-hijacking). Min password 8. Auth errors go through `authErrorMessage` (wrong email and wrong password read the same; reset never reveals whether an account exists).
+- Onboarding asks only for a **username** = `Profile.handle`: unique (`handles/{handle}`, claimed in one transaction with `users/{uid}`), **permanent** (rules forbid changing it). `displayName` starts as the username and is edited in Edit profile. No photo import from Google.
+- Real project: **`sartre-e3386`** (`.firebaserc` default; web app `sartre-web`, config in gitignored `apps/web/.env.local`). The app uses it whenever `NEXT_PUBLIC_FIREBASE_PROJECT_ID` is set; without it, the emulators. `pnpm emulators` / `pnpm test:rules` are pinned to `--project demo-sartre` (Java 21+) so tests never touch real data. `pnpm deploy:rules` deploys `firestore.rules` + `storage.rules` (until Storage exists, use `firebase deploy --only firestore:rules`).
+- **No Storage yet:** the project is on the free Spark plan and Storage needs Blaze, so `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` is empty, `Backend.imageUploads` is false and Edit profile hides photo/banner uploads (emulators still allow them). Enabling it later: upgrade, Storage → Get started, set the bucket, `pnpm deploy:rules`.
+- Before real users, in the Firebase console: password policy 8+, email enumeration protection on, one account per email, API key restricted by HTTP referrer, authorized domains, App Check.
+- Books/rankings/completions are still in memory in this mode (next slice).
+
 ## Book data (Open Library)
 
 - Always request covers **by cover ID**: `https://covers.openlibrary.org/b/id/{id}-{S|M|L}.jpg?default=false` (ISBN cover URLs are rate-limited; `default=false` makes missing covers 404 so the typographic fallback shows). The CDN sends CORS headers, so browser PNG export works.
@@ -85,7 +96,7 @@ Packages export TypeScript source directly (`main: ./src/index.ts`); no build st
 
 ## Prototype controls
 
-The DevToolbar (bottom-right pill) and URL query params drive: volume `n=1|4|30` (default 1), `theme`, `as=public` + `privacy`, `months=covers|bars|both`, `rank=position|score|both`, `banner=topFour|collage`, `src=live|mock`. Logged books live in memory and reset on full reload or volume change.
+The DevToolbar (bottom-right pill) and URL query params drive: volume `n=1|4|30` (default 1), `theme`, `as=public` + `privacy`, `months=covers|bars|both`, `rank=position|score|both`, `banner=topFour|collage`, `src=live|mock` (book search), `data=mock|firebase` (library source). Logged books live in memory and reset on full reload or volume change.
 
 ## Open product questions (the prototype has toggles for the first four)
 

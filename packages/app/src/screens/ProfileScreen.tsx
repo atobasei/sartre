@@ -3,6 +3,7 @@ import { space } from '@sartre/tokens';
 import { Avatar, BucketTag, Button, Card, Cover, ProgressBar, SectionLabel, Segmented, Tabs, Text, useTheme, useViewport } from '@sartre/ui';
 import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
+import { Field } from '../components/AuthFrame';
 import { Banner } from '../components/Banner';
 import { MonthlyTimeline } from '../components/MonthlyTimeline';
 import { RankBadge } from '../components/RankBadge';
@@ -61,19 +62,25 @@ export function ProfileScreen({ handle }: { handle?: string }) {
             {owner && !draft ? <Button label="Edit profile" kind="ghost" onPress={() => setDraft({})} /> : null}
           </View>
           <View style={{ marginTop: space[3], gap: 2 }}>
-            <Text variant="title">{profile.displayName}</Text>
+            <Text variant="title">{profile.displayName.trim() || profile.handle}</Text>
             <Text variant="mono" tone="muted">
               @{profile.handle}
             </Text>
             {owner && draft ? (
               <ProfileEditor
+                name={profile.displayName}
                 bio={profile.bio ?? ''}
                 hasBannerImage={Boolean(bannerImage)}
+                imageUploads={!session || session.backend.imageUploads}
                 onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
                 onCancel={() => setDraft(null)}
                 onSave={() => {
                   const bio = draft.bio?.trim();
-                  updateProfile({ ...draft, ...(draft.bio !== undefined && { bio: bio || undefined }) });
+                  updateProfile({
+                    ...draft,
+                    ...(draft.displayName !== undefined && { displayName: draft.displayName.trim() }),
+                    ...(draft.bio !== undefined && { bio: bio || undefined }),
+                  });
                   setDraft(null);
                 }}
               />
@@ -113,16 +120,22 @@ export function ProfileScreen({ handle }: { handle?: string }) {
 // ─── Edit profile ───────────────────────────────────────────────────────────
 
 const BIO_MAX = 160;
+const NAME_MAX = 60;
 
 function ProfileEditor({
+  name,
   bio,
   hasBannerImage,
+  imageUploads,
   onChange,
   onCancel,
   onSave,
 }: {
+  name: string;
   bio: string;
   hasBannerImage: boolean;
+  /** Off on a Firebase project without Storage; mock mode keeps images in memory. */
+  imageUploads: boolean;
   onChange: (patch: ProfilePatch) => void;
   onCancel: () => void;
   onSave: () => void;
@@ -133,9 +146,20 @@ function ProfileEditor({
     if (!uri) return;
     onChange(kind === 'avatar' ? { avatarUrl: uri } : { banner: { type: 'image', uri } });
   };
+  // The username is permanent; the name shown above it is what changes.
+  const nameMissing = !name.trim();
 
   return (
     <View style={{ marginTop: space[3], gap: space[3], maxWidth: 520 }}>
+      <Field
+        value={name}
+        onChangeText={(text) => onChange({ displayName: text })}
+        maxLength={NAME_MAX}
+        placeholder="Name"
+        autoCapitalize="words"
+        autoCorrect={false}
+        accessibilityLabel="Name"
+      />
       <View style={{ gap: 6 }}>
         <TextInput
           value={bio}
@@ -162,14 +186,18 @@ function ProfileEditor({
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: space[2], flexWrap: 'wrap' }}>
-        <Button label="Change photo" kind="secondary" onPress={() => pick('avatar')} />
-        <Button label="Change banner" kind="secondary" onPress={() => pick('banner')} />
+        {imageUploads ? (
+          <>
+            <Button label="Change photo" kind="secondary" onPress={() => pick('avatar')} />
+            <Button label="Change banner" kind="secondary" onPress={() => pick('banner')} />
+          </>
+        ) : null}
         {hasBannerImage ? (
           <Button label="Use covers" kind="ghost" onPress={() => onChange({ banner: { type: 'topFour' } })} />
         ) : null}
       </View>
       <View style={{ flexDirection: 'row', gap: space[2] }}>
-        <Button label="Save" onPress={onSave} />
+        <Button label="Save" disabled={nameMissing} onPress={onSave} />
         <Button label="Cancel" kind="ghost" onPress={onCancel} />
       </View>
     </View>

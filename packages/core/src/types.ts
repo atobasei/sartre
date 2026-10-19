@@ -109,4 +109,4 @@ export interface Profile {
 }
 
 /** The profile fields an owner edits in place. `undefined` clears a field. */
-export type ProfilePatch = Partial<Pick<Profile, 'bio' | 'avatarUrl' | 'banner'>>;
+export type ProfilePatch = Partial<Pick<Profile, 'displayName' | 'bio' | 'avatarUrl' | 'banner'>>;

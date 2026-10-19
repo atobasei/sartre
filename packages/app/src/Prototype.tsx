@@ -8,8 +8,9 @@ import { View } from 'react-native';
 import { AppShell } from './AppShell';
 import { AuthFrame } from './components/AuthFrame';
 import { NavProvider, type Nav } from './nav';
-import { HandleScreen } from './screens/HandleScreen';
 import { SignInScreen } from './screens/SignInScreen';
+import { UsernameScreen } from './screens/UsernameScreen';
+import { VerifyEmailScreen } from './screens/VerifyEmailScreen';
 import { SessionProvider, useSession } from './session';
 import { SettingsProvider, type PrototypeSettings } from './settings';
 import { emptyLibrary, LibraryProvider } from './store';
@@ -70,8 +71,9 @@ function SessionGate({ provider, children }: { provider: BookProvider; children:
       </AuthFrame>
     );
   }
-  if (state.status === 'signedOut') return <SignInScreen session={session} emailLink={state.emailLink} />;
-  if (state.status === 'needsHandle') return <HandleScreen session={session} user={state.user} />;
+  if (state.status === 'signedOut') return <SignInScreen session={session} />;
+  if (state.status === 'needsVerification') return <VerifyEmailScreen session={session} user={state.user} />;
+  if (state.status === 'needsUsername') return <UsernameScreen session={session} user={state.user} />;
   return (
     <AccountLibrary key={state.profile.uid} backend={session.backend} profile={state.profile} provider={provider}>
       {children}

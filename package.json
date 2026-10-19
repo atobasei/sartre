@@ -7,8 +7,9 @@
     "dev:mobile": "pnpm --filter mobile start",
     "build": "turbo run build",
     "test": "turbo run test",
-    "emulators": "firebase emulators:start --import=.firebase/emulator-data --export-on-exit",
-    "test:rules": "firebase emulators:exec --only firestore,storage \"pnpm --filter @sartre/firebase test:rules\"",
+    "emulators": "firebase emulators:start --project demo-sartre --import=.firebase/emulator-data --export-on-exit",
+    "test:rules": "firebase emulators:exec --project demo-sartre --only firestore,storage \"pnpm --filter @sartre/firebase test:rules\"",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint"
   },

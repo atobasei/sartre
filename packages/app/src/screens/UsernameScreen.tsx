@@ -1,5 +1,5 @@
 import { handleProblem, normalizeHandle, suggestHandle, type HandleProblem, type Profile } from '@sartre/core';
-import type { SessionUser } from '@sartre/firebase';
+import { authErrorMessage, type SessionUser } from '@sartre/firebase';
 import { space } from '@sartre/tokens';
 import { Button, Text } from '@sartre/ui';
 import { useState } from 'react';
@@ -15,26 +15,28 @@ const PROBLEMS: Record<HandleProblem, string> = {
   chars: 'Letters, numbers and underscores only.',
 };
 
-/** First sign-in only: a name and a handle, which becomes the profile URL. */
-export function HandleScreen({ session, user }: { session: Session; user: SessionUser }) {
+/**
+ * The only sign-up question. The username is permanent and unique (it's the
+ * /@username URL, stored as `handle`); the display name starts as the username
+ * and is edited later from the profile.
+ */
+export function UsernameScreen({ session, user }: { session: Session; user: SessionUser }) {
   const nav = useNav();
   const { settings } = useSettings();
-  const [name, setName] = useState(user.displayName ?? '');
-  const [handle, setHandle] = useState(() => suggestHandle(user.displayName ?? user.email ?? ''));
+  const [username, setUsername] = useState(() => suggestHandle(user.email ?? ''));
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
-  const normalized = normalizeHandle(handle);
+  const normalized = normalizeHandle(username);
   const problem = handleProblem(normalized);
-  const ready = !problem && name.trim().length > 0 && !busy;
+  const ready = !problem && !busy;
 
   const submit = async () => {
     if (!ready) return;
     const profile: Profile = {
       uid: user.uid,
       handle: normalized,
-      displayName: name.trim().slice(0, 60),
-      avatarUrl: user.photoURL,
+      displayName: normalized,
       banner: { type: 'topFour' },
       theme: settings.theme,
       privacy: 'completions',
@@ -47,28 +49,36 @@ export function HandleScreen({ session, user }: { session: Session; user: Sessio
       session.setProfile(profile);
       nav.replace(routes.profile(profile.handle));
     } catch (e) {
-      setError((e as Error).name === 'HandleTakenError' ? `@${normalized} is taken.` : 'That didn’t work. Try again.');
-      if ((e as Error).name !== 'HandleTakenError') console.error(e);
+      if ((e as Error).name === 'HandleTakenError') {
+        setError(`@${normalized} is taken.`);
+      } else {
+        console.error(e);
+        setError(authErrorMessage(e));
+      }
       setBusy(false);
     }
   };
 
   return (
     <AuthFrame>
-      <Text variant="title">Your profile</Text>
+      <Text variant="title">Choose a username</Text>
+      <Text variant="body" tone="muted">
+        It’s your profile’s address and can’t be changed later. Your display name can.
+      </Text>
       <View style={{ gap: space[2] }}>
-        <Text variant="label" tone="muted">
-          Name
-        </Text>
-        <Field value={name} onChangeText={setName} autoCapitalize="words" autoComplete="name" accessibilityLabel="Name" maxLength={60} />
-      </View>
-      <View style={{ gap: space[2] }}>
-        <Text variant="label" tone="muted">
-          Handle
-        </Text>
-        <Field value={handle} onChangeText={setHandle} onSubmitEditing={submit} accessibilityLabel="Handle" maxLength={21} />
-        <Text variant="mono" tone={handle && problem ? 'accent' : 'faint'}>
-          {handle && problem ? PROBLEMS[problem] : `/@${normalized || 'handle'}`}
+        <Field
+          value={username}
+          onChangeText={setUsername}
+          onSubmitEditing={submit}
+          placeholder="Username"
+          autoComplete="username"
+          textContentType="username"
+          accessibilityLabel="Username"
+          maxLength={21}
+          autoFocus
+        />
+        <Text variant="mono" tone={username && problem ? 'accent' : 'faint'}>
+          {username && problem ? PROBLEMS[problem] : `/@${normalized || 'username'}`}
         </Text>
       </View>
       {error ? (

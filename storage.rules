@@ -8,6 +8,7 @@ service firebase.storage {
     match /users/{uid}/{file} {
       allow read: if true;
       allow create: if request.auth != null && request.auth.uid == uid
+        && request.auth.token.email_verified == true
         && file.matches('(avatar|banner)-[0-9A-Za-z]+[.]jpg')
         && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');

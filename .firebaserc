@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-sartre"
+    "default": "sartre-e3386",
+    "demo": "demo-sartre"
   }
 }

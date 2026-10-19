@@ -14,6 +14,12 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // Writes need a verified email (Google accounts arrive verified). Without it,
+    // someone could register your address with a password and squat on it.
+    function isVerifiedUser(uid) {
+      return isUser(uid) && request.auth.token.email_verified == true;
+    }
+
     function validProfile(data) {
       return data.keys().hasOnly(['handle', 'displayName', 'bio', 'avatarUrl', 'banner', 'theme', 'privacy', 'joinedAt'])
         && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 60
@@ -24,17 +30,18 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isUser(uid);
       // Created once, in the same transaction that claims handles/{handle}.
-      allow create: if isUser(uid) && validProfile(request.resource.data)
+      allow create: if isVerifiedUser(uid) && validProfile(request.resource.data)
         && getAfter(/databases/$(database)/documents/handles/$(request.resource.data.handle)).data.uid == uid;
-      // Handle changes need a release/claim flow; until then the handle is fixed.
-      allow update: if isUser(uid) && validProfile(request.resource.data)
+      // The handle is the permanent username; the display name is what people edit.
+      allow update: if isVerifiedUser(uid) && validProfile(request.resource.data)
         && request.resource.data.handle == resource.data.handle;
       allow delete: if false;
 
       // `{collection}` first: a bare `{document=**}` also matches zero segments,
       // i.e. users/{uid} itself, which would bypass the profile checks above.
       match /{collection}/{document=**} {
-        allow read, write: if isUser(uid);
+        allow read: if isUser(uid);
+        allow write: if isVerifiedUser(uid);
       }
     }
 
@@ -43,7 +50,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       // A user can only claim the handle their own new profile names, which makes it one handle per user.
-      allow create: if signedIn()
+      allow create: if isVerifiedUser(request.auth.uid)
         && handle.matches('^[a-z0-9_]{3,20}$')
         && request.resource.data.keys().hasOnly(['uid'])
         && request.resource.data.uid == request.auth.uid

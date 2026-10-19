@@ -4,25 +4,31 @@ import type { Profile, ProfilePatch } from '@sartre/core';
 export interface SessionUser {
   uid: string;
   email?: string;
-  displayName?: string;
-  photoURL?: string;
+  /** Google accounts arrive verified; password accounts verify by email link. */
+  emailVerified: boolean;
+  /** Sign-in methods on the account, e.g. ['password'] or ['google.com']. */
+  providers: string[];
 }
-
-/** 'needsEmail': the link was opened on a different device, so we must ask which address it was sent to. */
-export type EmailLinkResult = 'none' | 'needsEmail' | 'done';
 
 /**
  * Everything the app does with Firebase, behind one object the platform adapters
  * build. Shared screens only see this interface, never the SDK.
  */
 export interface Backend {
-  /** True when talking to the local emulators (sign-in emails are printed, not sent). */
+  /** True when talking to the local emulators (emails are captured, not sent). */
   usingEmulators: boolean;
+  /** Profile photos and image banners need Cloud Storage, which needs the Blaze plan. */
+  imageUploads: boolean;
   onUser(listener: (user: SessionUser | null) => void): () => void;
   signInWithGoogle(): Promise<void>;
-  sendEmailLink(email: string): Promise<void>;
-  /** Finishes an email-link sign-in if the current URL is one. */
-  completeEmailLink(email?: string): Promise<EmailLinkResult>;
+  /** Creates the account and sends the verification email. */
+  signUpWithPassword(email: string, password: string): Promise<void>;
+  signInWithPassword(email: string, password: string): Promise<void>;
+  /** Resolves the same way whether or not the account exists. */
+  sendPasswordReset(email: string): Promise<void>;
+  resendVerification(): Promise<void>;
+  /** Re-reads the user (and forces a fresh token) so a just-verified email counts. */
+  refreshUser(): Promise<SessionUser | null>;
   signOut(): Promise<void>;
 
   getProfile(uid: string): Promise<Profile | null>;

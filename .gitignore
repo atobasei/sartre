@@ -36,6 +36,12 @@ apps/mobile/android/
 firebase-debug.log*
 firestore-debug.log*
 ui-debug.log*
+# Emulator exports made outside .firebase/, and admin credentials (never commit these)
+firebase-export-*/
+*-firebase-adminsdk-*.json
+service-account*.json
+serviceAccount*.json
+.runtimeconfig.json
 
 # Logs
 *.log

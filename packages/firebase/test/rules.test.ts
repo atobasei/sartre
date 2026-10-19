@@ -45,8 +45,22 @@ const claim = (db: Firestore, uid: string, handle: string, extra?: Record<string
 // The test contexts hand out compat instances; the modular functions unwrap them at runtime.
 const db = (ctx: RulesTestContext) => ctx.firestore() as unknown as Firestore;
 const bucket = (ctx: RulesTestContext) => ctx.storage() as unknown as FirebaseStorage;
-const as = (uid: string) => db(env.authenticatedContext(uid));
+const verified = (uid: string) => env.authenticatedContext(uid, { email_verified: true });
+const as = (uid: string) => db(verified(uid));
+const asUnverified = (uid: string) => db(env.authenticatedContext(uid, { email_verified: false }));
 const anon = () => db(env.unauthenticatedContext());
+
+describe('email verification', () => {
+  it('keeps unverified accounts from claiming a username or writing data', async () => {
+    await assertFails(claim(asUnverified('alice'), 'alice', 'alice'));
+    await assertFails(setDoc(doc(asUnverified('alice'), 'users/alice/rankings/main'), { loved: [] }));
+  });
+
+  it('keeps unverified accounts from editing an existing profile', async () => {
+    await claim(as('alice'), 'alice', 'alice');
+    await assertFails(updateDoc(doc(asUnverified('alice'), 'users', 'alice'), { bio: 'x' }));
+  });
+});
 
 describe('handles and profiles', () => {
   it('lets a user claim a free handle with their profile', async () => {
@@ -75,10 +89,11 @@ describe('handles and profiles', () => {
     await assertFails(setDoc(doc(as('alice'), 'handles', 'alice2'), { uid: 'alice' }));
   });
 
-  it('lets the owner edit their profile but not change handle', async () => {
+  it('lets the owner edit their name and bio but never the username', async () => {
     const alice = as('alice');
     await claim(alice, 'alice', 'alice');
-    await assertSucceeds(updateDoc(doc(alice, 'users', 'alice'), { bio: 'Long novels.' }));
+    await assertSucceeds(updateDoc(doc(alice, 'users', 'alice'), { bio: 'Long novels.', displayName: 'Alice L.' }));
+    await assertFails(updateDoc(doc(alice, 'users', 'alice'), { displayName: '' }));
     await assertFails(updateDoc(doc(alice, 'users', 'alice'), { handle: 'alicia' }));
   });
 
@@ -104,7 +119,7 @@ describe('handles and profiles', () => {
 describe('profile images', () => {
   const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
   const upload = (uid: string, path: string, contentType = 'image/jpeg') =>
-    uploadBytes(ref(bucket(env.authenticatedContext(uid)), path), jpeg, { contentType });
+    uploadBytes(ref(bucket(verified(uid)), path), jpeg, { contentType });
 
   it('lets the owner upload avatars and banners, readable by anyone', async () => {
     await assertSucceeds(upload('alice', 'users/alice/avatar-01HZX3.jpg'));
@@ -116,5 +131,7 @@ describe('profile images', () => {
     await assertFails(upload('bob', 'users/alice/avatar-01HZX3.jpg'));
     await assertFails(upload('alice', 'users/alice/notes.txt'));
     await assertFails(upload('alice', 'users/alice/avatar-01HZX3.jpg', 'text/plain'));
+    const unverified = bucket(env.authenticatedContext('alice', { email_verified: false }));
+    await assertFails(uploadBytes(ref(unverified, 'users/alice/avatar-01HZX5.jpg'), jpeg, { contentType: 'image/jpeg' }));
   });
 });
